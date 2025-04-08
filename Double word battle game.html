@@ -483,6 +483,7 @@
         let skippedWords = new Set();
         let answerItems = [];
         let isRandomOrder = false;
+        let completedWords = new Set();
 
         const wordInput = document.getElementById('wordInput');
         const submitBtn = document.getElementById('submitBtn');
@@ -551,15 +552,7 @@
         }
 
         function showMyWord() {
-            if (myWordIndex >= wordList.length) {
-                myWordIndex = 0;
-            }
-            // 如果当前单词已经回答过，找到下一个未回答的单词
-            while (answeredWords.has(myWordIndex) && answeredWords.size < wordList.length) {
-                myWordIndex = (myWordIndex + 1) % wordList.length;
-            }
-            
-            if (answeredWords.size >= wordList.length) {
+            if (completedWords.size >= wordList.length) {
                 gameStatus.textContent = '游戏结束！';
                 wordInput.disabled = true;
                 submitBtn.disabled = true;
@@ -567,6 +560,22 @@
                 return;
             }
 
+            let nextWordIndex = myWordIndex;
+            let attempts = 0;
+            while (completedWords.has(nextWordIndex) && attempts < wordList.length) {
+                nextWordIndex = (nextWordIndex + 1) % wordList.length;
+                attempts++;
+            }
+
+            if (attempts >= wordList.length) {
+                gameStatus.textContent = '游戏结束！';
+                wordInput.disabled = true;
+                submitBtn.disabled = true;
+                skipBtn.disabled = true;
+                return;
+            }
+
+            myWordIndex = nextWordIndex;
             const word = wordList[myWordIndex];
             chineseMeaningDisplay.textContent = word.chinese;
             currentWordDisplay.textContent = '';
@@ -574,7 +583,6 @@
             wordInput.focus();
             updateProgress();
             
-            // 更新答题记录的当前状态
             answerItems.forEach(item => {
                 item.classList.remove('current');
                 if (parseInt(item.dataset.index) === myWordIndex) {
@@ -594,10 +602,9 @@
             answerItem.dataset.index = index;
             
             answerItem.addEventListener('click', () => {
-                if (!isCorrect) { // 只有跳过的单词可以点击返回
-                    myWordIndex = index;
+                if (!isCorrect) {
+                    myWordIndex = parseInt(index);
                     showMyWord();
-                    // 更新所有答题记录的当前状态
                     answerItems.forEach(item => {
                         item.classList.remove('current');
                         if (parseInt(item.dataset.index) === index) {
@@ -639,7 +646,6 @@
                 connectInput.disabled = true;
                 connectBtn.disabled = true;
 
-                // 更新玩家角色显示
                 updatePlayerRoles();
 
                 if (isHost) {
@@ -668,6 +674,8 @@
                 myWordIndex = 0;
                 opponentWordIndex = 0;
                 answeredWords = new Set();
+                skippedWords = new Set();
+                completedWords = new Set();
                 answerItems = [];
                 answerList.innerHTML = '';
                 showMyWord();
@@ -676,18 +684,15 @@
                 const oldScore = scores[data.player - 1];
                 scores[data.player - 1] = data.score;
                 updateScores();
-                // 只有当分数增加时才显示星星特效
                 if (data.score > oldScore && data.isCorrect) {
                     showStarAnimation(data.player);
                 }
                 opponentWordIndex = data.wordIndex;
             } else if (data.type === 'wordListUpdate') {
-                // 接收到单词表更新
                 wordLists = data.wordLists;
                 currentWordList = data.currentWordList;
                 wordList = wordLists[currentWordList];
                 
-                // 更新选择器选项
                 wordListSelect.innerHTML = '';
                 Object.keys(wordLists).forEach(listName => {
                     const option = document.createElement('option');
@@ -696,18 +701,14 @@
                     wordListSelect.appendChild(option);
                 });
                 
-                // 设置当前选中的单词表
                 wordListSelect.value = currentWordList;
                 
-                // 更新表格显示
                 updateWordListTable();
                 
-                // 如果正在游戏中，重新显示当前单词
                 if (gameStarted) {
                     showMyWord();
                 }
                 
-                // 保存到本地存储
                 localStorage.setItem('wordLists', JSON.stringify(wordLists));
                 
                 alert('单词表已更新！');
@@ -718,6 +719,8 @@
             myWordIndex = 0;
             opponentWordIndex = 0;
             answeredWords = new Set();
+            skippedWords = new Set();
+            completedWords = new Set();
             answerItems = [];
             answerList.innerHTML = '';
             conn.send({
@@ -735,7 +738,7 @@
         }
 
         function createStarBurst(scoreElement) {
-            const starCount = 16; // 增加到16个星星
+            const starCount = 16;
             const centerX = scoreElement.offsetWidth / 2;
             const centerY = scoreElement.offsetHeight / 2;
             
@@ -743,16 +746,14 @@
                 const star = document.createElement('div');
                 star.className = 'star';
                 star.textContent = '★';
-                star.style.fontSize = Math.random() * 10 + 15 + 'px'; // 随机大小15-25px
+                star.style.fontSize = Math.random() * 10 + 15 + 'px';
                 
-                // 计算星星的初始位置（围绕分数中心）
                 const angle = (i / starCount) * Math.PI * 2;
-                const radius = Math.random() * 20 + 10; // 随机初始半径10-30
+                const radius = Math.random() * 20 + 10;
                 const startX = centerX + Math.cos(angle) * radius;
                 const startY = centerY + Math.sin(angle) * radius;
                 
-                // 设置最终位置（向外发散）
-                const endRadius = Math.random() * 30 + 50; // 随机结束半径50-80
+                const endRadius = Math.random() * 30 + 50;
                 const endX = centerX + Math.cos(angle) * endRadius;
                 const endY = centerY + Math.sin(angle) * endRadius;
                 
@@ -760,22 +761,18 @@
                 star.style.top = `${startY}px`;
                 star.style.transform = `translate(-50%, -50%)`;
                 
-                // 随机延迟开始时间
                 star.style.animationDelay = `${Math.random() * 0.2}s`;
                 
-                // 随机颜色
                 const colors = ['gold', '#FFD700', '#FFA500', '#FFFF00'];
                 star.style.color = colors[Math.floor(Math.random() * colors.length)];
                 
                 scoreElement.appendChild(star);
                 
-                // 动画结束后移除星星元素
                 star.addEventListener('animationend', () => {
                     star.remove();
                 });
             }
             
-            // 添加第二波星星，延迟0.3秒
             setTimeout(() => {
                 for (let i = 0; i < starCount/2; i++) {
                     const star = document.createElement('div');
@@ -809,7 +806,7 @@
         }
 
         function skipCurrentWord() {
-            if (answeredWords.has(myWordIndex)) {
+            if (completedWords.has(myWordIndex)) {
                 showMyWord();
                 return;
             }
@@ -817,6 +814,7 @@
             const currentWord = wordList[myWordIndex];
             addAnswerToCard(currentWord.chinese, currentWord.english, false, myWordIndex);
             addToSkippedList(myWordIndex);
+            completedWords.add(myWordIndex);
             
             myWordIndex = (myWordIndex + 1) % wordList.length;
             const scoreData = {
@@ -837,8 +835,8 @@
             const inputWord = wordInput.value.toLowerCase().trim();
             const currentWord = wordList[myWordIndex];
             
-            if (answeredWords.has(myWordIndex)) {
-                alert('这个单词已经回答过了！');
+            if (completedWords.has(myWordIndex)) {
+                alert('这个单词已经完成过了！');
                 showMyWord();
                 return;
             }
@@ -850,6 +848,7 @@
                 showStarAnimation(myPlayerNumber);
                 addAnswerToCard(currentWord.chinese, currentWord.english, true, myWordIndex);
                 answeredWords.add(myWordIndex);
+                completedWords.add(myWordIndex);
                 
                 if (skippedWords.has(myWordIndex)) {
                     markSkippedWordAsAnswered(myWordIndex);
@@ -909,7 +908,6 @@
             }
         }
 
-        // 更新单词表显示
         function updateWordListTable() {
             wordListTableBody.innerHTML = '';
             const displayList = isRandomOrder ? [...wordList].sort(() => Math.random() - 0.5) : wordList;
@@ -927,7 +925,21 @@
             });
         }
 
-        // 添加新单词
+        function shuffleWordList() {
+            if (isRandomOrder) {
+                const shuffledList = [...wordList].sort(() => Math.random() - 0.5);
+                wordList = shuffledList;
+                localStorage.setItem('wordLists', JSON.stringify(wordLists));
+                if (conn && conn.open) {
+                    conn.send({
+                        type: 'wordListUpdate',
+                        wordLists: wordLists,
+                        currentWordList: currentWordList
+                    });
+                }
+            }
+        }
+
         function addWord() {
             const chinese = prompt('请输入中文：');
             if (!chinese) return;
@@ -939,7 +951,6 @@
             saveWordLists();
         }
 
-        // 编辑单词
         function editWord(index) {
             const word = wordList[index];
             const newChinese = prompt('请输入新的中文：', word.chinese);
@@ -952,7 +963,6 @@
             saveWordLists();
         }
 
-        // 删除单词
         function deleteWord(index) {
             if (confirm('确定要删除这个单词吗？')) {
                 wordList.splice(index, 1);
@@ -961,7 +971,6 @@
             }
         }
 
-        // 添加新单词表
         function addWordList() {
             const listName = prompt('请输入新单词表名称：');
             if (!listName) return;
@@ -978,23 +987,20 @@
             wordListSelect.appendChild(option);
             wordListSelect.value = listName;
             switchWordList(listName);
-            saveWordLists(); // 添加新单词表后同步
+            saveWordLists();
         }
 
-        // 切换单词表
         function switchWordList(listName) {
             currentWordList = listName;
             wordList = wordLists[listName];
             updateWordListTable();
-            saveWordLists(); // 切换单词表后同步
+            saveWordLists();
         }
 
-        // 导入单词表
         function importWordList() {
             importFile.click();
         }
 
-        // 导出单词表
         function exportWordList() {
             const data = JSON.stringify(wordLists, null, 2);
             const blob = new Blob([data], { type: 'application/json' });
@@ -1008,11 +1014,9 @@
             URL.revokeObjectURL(url);
         }
 
-        // 保存单词表到本地存储并同步给另一方
         function saveWordLists() {
             localStorage.setItem('wordLists', JSON.stringify(wordLists));
             
-            // 如果已连接，则同步给另一方
             if (conn && conn.open) {
                 conn.send({
                     type: 'wordListUpdate',
@@ -1022,14 +1026,12 @@
             }
         }
 
-        // 从本地存储加载单词表
         function loadWordLists() {
             const savedLists = localStorage.getItem('wordLists');
             if (savedLists) {
                 wordLists = JSON.parse(savedLists);
             }
             
-            // 更新选择器选项
             wordListSelect.innerHTML = '';
             Object.keys(wordLists).forEach(listName => {
                 const option = document.createElement('option');
@@ -1038,20 +1040,16 @@
                 wordListSelect.appendChild(option);
             });
             
-            // 设置当前选中的单词表
             wordListSelect.value = currentWordList;
             wordList = wordLists[currentWordList];
             
-            // 更新表格显示
             updateWordListTable();
             
-            // 如果正在游戏中，重新显示当前单词
             if (gameStarted) {
                 showMyWord();
             }
         }
 
-        // 事件监听器
         addWordListBtn.addEventListener('click', addWordList);
         addWordBtn.addEventListener('click', addWord);
         importWordListBtn.addEventListener('click', importWordList);
@@ -1061,7 +1059,21 @@
         });
         document.getElementById('randomOrderToggle').addEventListener('change', (e) => {
             isRandomOrder = e.target.checked;
-            updateWordListTable();
+            if (isRandomOrder) {
+                alert('已开启随机顺序显示，将自动返回主页！');
+                shuffleWordList();
+                document.querySelector('.tab[data-tab="home"]').click();
+                if (gameStarted) {
+                    showMyWord();
+                }
+            } else {
+                alert('已关闭随机顺序显示，将自动返回主页！');
+                wordList = wordLists[currentWordList];
+                document.querySelector('.tab[data-tab="home"]').click();
+                if (gameStarted) {
+                    showMyWord();
+                }
+            }
         });
 
         importFile.addEventListener('change', (e) => {
@@ -1072,7 +1084,7 @@
                     try {
                         const importedLists = JSON.parse(event.target.result);
                         wordLists = importedLists;
-                        saveWordLists(); // 导入后同步
+                        saveWordLists();
                         loadWordLists();
                         alert('单词表导入成功！');
                     } catch (error) {
@@ -1083,24 +1095,20 @@
             }
         });
 
-        // 标签页切换功能
         const tabs = document.querySelectorAll('.tab');
         const pages = document.querySelectorAll('.page');
 
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                // 移除所有标签和页面的active类
                 tabs.forEach(t => t.classList.remove('active'));
                 pages.forEach(p => p.classList.remove('active'));
                 
-                // 添加active类到当前标签和对应页面
                 tab.classList.add('active');
                 const pageId = tab.getAttribute('data-tab');
                 document.getElementById(pageId).classList.add('active');
             });
         });
 
-        // 初始化
         loadWordLists();
         updateWordListTable();
     </script>
